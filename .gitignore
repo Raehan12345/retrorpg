@@ -1,0 +1,11 @@
+# virtual environment
+venv_rpg/
+
+# python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# environment variables
+.env
