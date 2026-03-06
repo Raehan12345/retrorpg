@@ -4,19 +4,19 @@ A modular, 2D top-down RPG built with **Pygame-CE**. This project features a dyn
 
 ---
 
-## 🚀 Features
+## Features
 
-### 🎨 Dynamic Visuals
+### Dynamic Visuals
 * **Layered Sprite System:** Leverages the *Monster Pack Character 2* by Admurin, allowing weapons (Swords, Bows, Staffs) to be rendered dynamically over the base character sprite in real-time.
 * **Pixel-Perfect Animations:** Supports 4-frame idle loops and is structured to expand into 6-frame attack and movement sequences.
 * **Equipment Preview:** Features a compact 120x120 character preview in the inventory menu that updates instantly as gear is changed.
 
-### 🗺️ World & Exploration
+### World & Exploration
 * **Procedural Dungeons:** Randomly generated maps utilizing a **Flood-Fill Algorithm** to ensure 100% path connectivity between the player spawn and the portal.
 * **Clamped Camera System:** A "follow-cam" that keeps the player centered while strictly preventing the viewport from showing the black void outside map boundaries.
 * **Interactive Entities:** Features Chests for loot, Forges for item upgrading, and Enemy encounters.
 
-### ⚔️ Combat & Systems
+### Combat & Systems
 * **Turn-Based Battle Engine:** Classic RPG combat including physical attacks, magic spells, and passive skill checks (e.g., Berserk/Low-HP buffs).
 * **Inventory Management:** Integrated system for equipping, using consumables, and dismantling gear for crafting materials (Shards).
 * **The Forge:** A risk-reward upgrade system where items can be leveled up using collected Shards.
@@ -39,7 +39,7 @@ A modular, 2D top-down RPG built with **Pygame-CE**. This project features a dyn
 
 ---
 
-## 🛠️ Installation & Setup
+## Installation & Setup
 
 ### Prerequisites
 * Python 3.10+
