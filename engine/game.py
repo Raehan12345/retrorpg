@@ -114,16 +114,22 @@ class Game:
         p_data = data["player"]
         self.init_game_world(p_data["name"], p_data["class"])
         self.current_stage = data["stage"]
-        self.player.level = p_data["level"]; self.player.experience = p_data["exp"]
+        self.player.level = p_data["level"]
+        self.player.experience = p_data["exp"]
         self.player.exp_to_next_level = p_data["exp_next"]
         self.player.attribute_points = p_data.get("attribute_points", 0)
         self.player.spell_points = p_data.get("spell_points", 0)
         self.player.passive_points = p_data.get("passive_points", 0)
-        self.player.max_health = p_data["max_hp"]; self.player.current_health = p_data["hp"]
-        self.player.max_mana = p_data["max_mp"]; self.player.current_mana = p_data["mp"]
-        self.player.attack_damage = p_data["attack"]; self.player.magic_damage = p_data["magic"]
-        self.player.armor = p_data["armor"]; self.player.speed = p_data["speed"]
-        self.player.gold = p_data["gold"]; self.player.forge_materials = p_data.get("forge_materials", 0)
+        self.player.max_health = p_data["max_hp"]
+        self.player.current_health = p_data["hp"]
+        self.player.max_mana = p_data["max_mp"]
+        self.player.current_mana = p_data["mp"]
+        self.player.attack_damage = p_data["attack"]
+        self.player.magic_damage = p_data["magic"]
+        self.player.armor = p_data["armor"]
+        self.player.speed = p_data["speed"]
+        self.player.gold = p_data["gold"]
+        self.player.forge_materials = p_data.get("forge_materials", 0)
         self.player.unlocked_skills = [skill_tree_database[s] for s in p_data["skills"]]
         self.player.spells = []
         for sp in p_data["spells"]:
@@ -227,7 +233,8 @@ class Game:
         elif key == pygame.K_l:
             if self.player.attribute_points > 0 or self.player.spell_points > 0 or self.player.passive_points > 0:
                 self.state = state_level_up
-            else: self.add_message("no unspent points available.")
+            else:
+                self.add_message("no unspent points available.")
         if self.game_map.is_walkable(nx, ny):
             self.last_x, self.last_y = self.player.rect.x, self.player.rect.y
             self.player.rect.x, self.player.rect.y = nx, ny
@@ -236,52 +243,62 @@ class Game:
     def handle_inventory_input(self, key):
         if key in [pygame.K_i, pygame.K_ESCAPE]:
             self.state = state_exploration; return
-        if key in [pygame.K_LEFT, pygame.K_a, pygame.K_RIGHT, pygame.K_d]:
-            self.inv_tab = "bag" if self.inv_tab == "equipped" else "equipped"
-            self.inv_selection = 0; self.inv_bag_scroll = 0
-            
-        eq_list = list(self.player.inventory.equipped.keys())
-        limit = len(eq_list) if self.inv_tab == "equipped" else len(self.player.inventory.bag)
         
-        if limit > 0:
-            if key in [pygame.K_UP, pygame.K_w]:
-                self.inv_selection = (self.inv_selection - 1) % limit
-                if self.inv_tab == "bag" and self.inv_selection < self.inv_bag_scroll: self.inv_bag_scroll = self.inv_selection
-                elif self.inv_tab == "bag" and self.inv_selection >= self.inv_bag_scroll + 7: self.inv_bag_scroll = max(0, self.inv_selection - 6)
-            elif key in [pygame.K_DOWN, pygame.K_s]:
-                self.inv_selection = (self.inv_selection + 1) % limit
-                if self.inv_tab == "bag" and self.inv_selection >= self.inv_bag_scroll + 7: self.inv_bag_scroll = self.inv_selection - 6
-                elif self.inv_tab == "bag" and self.inv_selection < self.inv_bag_scroll: self.inv_bag_scroll = self.inv_selection
-            elif key == pygame.K_RETURN:
-                if self.inv_tab == "equipped":
-                    slot = eq_list[self.inv_selection]
-                    if self.player.inventory.equipped[slot]:
-                        self.player.inventory.unequip(slot, self.player)
-                        self.add_message(f"unequipped {slot}.")
-                elif self.inv_tab == "bag":
-                    item = self.player.inventory.bag[self.inv_selection]
-                    if item.item_type == "equipment":
-                        self.player.inventory.equip(item, self.player)
-                        self.add_message(f"equipped {item.original_name}.")
-                    elif item.item_type == "consumable":
-                        success, msg = item.use(self.player)
-                        if success:
-                            self.player.inventory.remove_item(item); self.add_message(msg)
-            elif key == pygame.K_x:
-                if self.inv_tab == "bag":
-                    item = self.player.inventory.bag[self.inv_selection]
-                    if item.item_type == "equipment":
-                        mats = {"common": 1, "uncommon": 2, "rare": 4, "epic": 8, "legendary": 15}.get(item.rarity, 1)
-                        mats += (item.upgrade_level * 2); self.player.forge_materials += mats
-                        self.player.inventory.remove_item(item); self.add_message(f"dismantled {item.name} for {mats} shards.")
-                        
         if key == pygame.K_SPACE:
-            self.player.inventory.auto_equip(self.player); self.add_message("optimized gear auto-equipped.")
+            self.player.inventory.auto_equip(self.player)
+            self.add_message("Optimized gear auto-equipped.")
+            return
+
+        eq_list = list(self.player.inventory.equipped.keys())
+        bag_len = len(self.player.inventory.bag)
+
+        if key in [pygame.K_UP, pygame.K_w]:
+            self.inv_selection -= 1
+            # If we go above the first item in BAG, jump to the last item of EQUIPPED
+            if self.inv_tab == "bag" and self.inv_selection < 0:
+                self.inv_tab = "equipped"
+                self.inv_selection = len(eq_list) - 1
+            # Wrap around if at the very top
+            elif self.inv_tab == "equipped" and self.inv_selection < 0:
+                self.inv_tab = "bag"
+                self.inv_selection = max(0, bag_len - 1)
+
+        elif key in [pygame.K_DOWN, pygame.K_s]:
+            self.inv_selection += 1
+            # If we go past the last item in EQUIPPED, jump to BAG
+            if self.inv_tab == "equipped" and self.inv_selection >= len(eq_list):
+                self.inv_tab = "bag"
+                self.inv_selection = 0
+            # Wrap around if at the very bottom
+            elif self.inv_tab == "bag" and self.inv_selection >= bag_len:
+                self.inv_tab = "equipped"
+                self.inv_selection = 0
+
+        # Handle Scrolls for Bag only
+        if self.inv_tab == "bag":
+            if self.inv_selection < self.inv_bag_scroll: self.inv_bag_scroll = self.inv_selection
+            elif self.inv_selection >= self.inv_bag_scroll + 5: self.inv_bag_scroll = self.inv_selection - 4
+
+        # Action logic (Enter to Equip/Unequip, X to Dismantle)
+        if key == pygame.K_RETURN:
+            if self.inv_tab == "equipped":
+                slot = eq_list[self.inv_selection]
+                if self.player.inventory.equipped[slot]:
+                    self.player.inventory.unequip(slot, self.player)
+            elif self.inv_tab == "bag" and bag_len > 0:
+                item = self.player.inventory.bag[self.inv_selection]
+                if item.item_type == "equipment":
+                    self.player.inventory.equip(item, self.player)
+                elif item.item_type == "consumable":
+                    success, msg = item.use(self.player)
+                    if success: self.player.inventory.remove_item(item)
         
-        # CLAMP FIX: Ensures cursor doesn't crash game when items are moved or destroyed
-        limit = len(eq_list) if self.inv_tab == "equipped" else len(self.player.inventory.bag)
-        if limit == 0: self.inv_selection = 0
-        elif self.inv_selection >= limit: self.inv_selection = limit - 1
+        elif key == pygame.K_x and self.inv_tab == "bag" and bag_len > 0:
+            item = self.player.inventory.bag[self.inv_selection]
+            if item.item_type == "equipment":
+                mats = {"common": 1, "uncommon": 2, "rare": 4, "epic": 8, "legendary": 15}.get(item.rarity, 1)
+                self.player.forge_materials += mats + (item.upgrade_level * 2)
+                self.player.inventory.remove_item(item)
 
     def handle_level_up_input(self, key):
         if key in [pygame.K_ESCAPE, pygame.K_BACKSPACE]: self.state = state_exploration; return
@@ -360,13 +377,14 @@ class Game:
                         item = sell_info["item"]; val = 20 * self.current_stage
                         self.player.gold += val; self.player.inventory.remove_item(item)
                         self.add_message(f"sold {item.name} for {val}g.")
-                        limit = len([v for v in self.player.inventory.equipped.values() if v]) + len(self.player.inventory.bag)
-                        if limit == 0: self.shop_selection = 0
-                        elif self.shop_selection >= limit: self.shop_selection = limit - 1
 
     def handle_forge_input(self, key):
         if key in [pygame.K_ESCAPE, pygame.K_SPACE]:
-            self.state = state_exploration; self.player.rect.x = getattr(self, "last_x", self.player.rect.x); return
+            self.state = state_exploration
+            # FORGE FIX: Move player to their last safe position to break collision loop
+            self.player.rect.x = getattr(self, "last_x", self.player.rect.x)
+            self.player.rect.y = getattr(self, "last_y", self.player.rect.y)
+            return
         forgeables = [i for i in self.player.inventory.bag if i.item_type == "equipment"]
         limit = len(forgeables)
         if limit > 0:
@@ -443,59 +461,61 @@ class Game:
         self.screen.blit(self.font_tiny.render(f"{lab}: {int(curr)}/{int(max_v)}", True, white), (x, y - 16))
 
     def draw_hud(self):
-        # Draw HUD at the top
         hud_bg = pygame.Surface((width, 70))
-        hud_bg.set_alpha(180)
-        hud_bg.fill((20, 20, 20))
-        self.screen.blit(hud_bg, (0, 0))
-        
-        # Draw Combat/Event Log at the bottom so it doesn't overlap movement
+        hud_bg.set_alpha(180); hud_bg.fill((20, 20, 20)); self.screen.blit(hud_bg, (0, 0))
         log_bg = pygame.Surface((width, 80))
-        log_bg.set_alpha(180)
-        log_bg.fill((20, 20, 20))
-        self.screen.blit(log_bg, (0, height - 80))
+        log_bg.set_alpha(180); log_bg.fill((20, 20, 20)); self.screen.blit(log_bg, (0, height - 80))
         
-        # Render log messages
-        for i, m in enumerate(self.messages[-3:]): # Only show last 3 to save space
+        name_txt = self.font_sub.render(f"LVL {self.player.level} {self.player.player_class.upper()}", True, gold)
+        self.screen.blit(name_txt, (20, 10))
+        self.screen.blit(self.font_tiny.render(f"F5: save | L: stats | GOLD: {self.player.gold}", True, (200, 200, 200)), (20, 40))
+        self.draw_bar(340, 30, self.player.current_health, self.player.max_health, (200, 50, 50), "HP")
+        self.draw_bar(500, 30, self.player.current_mana, self.player.max_mana, (50, 50, 200), "MP")
+        self.draw_bar(660, 30, self.player.experience, self.player.exp_to_next_level, (200, 200, 50), "EXP")
+        for i, m in enumerate(self.messages[-3:]):
             txt = self.font_tiny.render(m, True, white)
             self.screen.blit(txt, (20, height - 70 + (i * 20)))
 
     def draw_inventory(self):
         self.draw_ui_panel("INVENTORY")
-        self.screen.blit(self.font_tiny.render("L/R: switch | ENTER: equip | X: dismantle | SPACE: auto", True, (200, 200, 200)), (120, 145))
+        # UPDATED INSTRUCTIONS: Includes SPACE info
+        self.screen.blit(self.font_tiny.render("W/S: Navigate | ENTER: Equip | SPACE: Auto-Equip | X: Dismantle", True, (200, 200, 200)), (120, 145))
+        
+        # Portrait shifted down to avoid instructions
+        self.player.draw_inventory_preview(self.screen, 150, 200)
+        
+        text_x = 400
+        y = 180
         c_eq = gold if self.inv_tab == "equipped" else (100, 255, 100)
         c_bg = gold if self.inv_tab == "bag" else (100, 100, 255)
-        self.screen.blit(self.font_tiny.render("EQUIPPED:", True, c_eq), (120, 175))
-        y = 200; eq_slots = list(self.player.inventory.equipped.keys())
-        for i, slot in enumerate(eq_slots):
-            item = self.player.inventory.equipped[slot]; name = item.name if item else "empty"
-            px = "> " if self.inv_tab == "equipped" and i == self.inv_selection else "  "
-            self.screen.blit(self.font_tiny.render(f"{px}{slot.upper()}: {name}", True, white), (130, y)); y += 22
-        y = 175; self.screen.blit(self.font_tiny.render("BAG:", True, c_bg), (400, y)); y += 25
-        visible_limit = 7
-        for i in range(self.inv_bag_scroll, min(len(self.player.inventory.bag), self.inv_bag_scroll + visible_limit)):
-            item = self.player.inventory.bag[i]; px = "> " if self.inv_tab == "bag" and i == self.inv_selection else "  "
-            qty = f" (x{item.quantity})" if item.quantity > 1 else ""
-            self.screen.blit(self.font_tiny.render(f"{px}{item.name}{qty}", True, white), (410, y)); y += 22
         
-        h_item = None
-        if self.inv_tab == "equipped" and self.inv_selection < len(eq_slots): h_item = self.player.inventory.equipped[eq_slots[self.inv_selection]]
-        elif self.inv_tab == "bag" and self.inv_selection < len(self.player.inventory.bag): h_item = self.player.inventory.bag[self.inv_selection]
-        if h_item:
-            pygame.draw.rect(self.screen, (40, 40, 40), (120, 360, 560, 140)); pygame.draw.rect(self.screen, gold, (120, 360, 560, 140), 1)
-            self.screen.blit(self.font_tiny.render(h_item.name.upper(), True, gold), (130, 370))
-            self.screen.blit(self.font_tiny.render(h_item.description, True, white), (130, 395))
-            if h_item.item_type == "equipment":
-                # SPEED +-1 FIX: Using conditional string building so negatives format cleanly
-                stat_texts = []
-                for k, v in h_item.stats.items():
-                    val_str = f"+{v}" if v > 0 else str(v)
-                    stat_texts.append(f"{k.replace('_', ' ').upper()}: {val_str}")
-                s_str = " | ".join(stat_texts)
-                if getattr(h_item, "element_damage", 0) > 0: s_str += f" | {h_item.element.upper()}: +{h_item.element_damage}"
-                self.screen.blit(self.font_tiny.render(f"STATS: {s_str}", True, (100, 255, 100)), (130, 420))
-            elif h_item.item_type == "consumable":
-                self.screen.blit(self.font_tiny.render(f"EFFECT: {h_item.effect_type.upper()} {h_item.amount}", True, (100, 100, 255)), (130, 420))
+        # EQUIPMENT SECTION
+        self.screen.blit(self.font_tiny.render("EQUIPMENT:", True, c_eq), (text_x, y))
+        y += 30
+        eq_slots = list(self.player.inventory.equipped.keys())
+        for i, slot in enumerate(eq_slots):
+            item = self.player.inventory.equipped[slot]
+            name = item.name if item else "empty"
+            color = gold if self.inv_tab == "equipped" and i == self.inv_selection else white
+            px = "> " if color == gold else "  "
+            self.screen.blit(self.font_tiny.render(f"{px}{slot.upper()}: {name}", True, color), (text_x + 10, y))
+            y += 24
+            
+        y += 20
+        # BAG SECTION: Single loop, no duplication
+        self.screen.blit(self.font_tiny.render("BAG:", True, c_bg), (text_x, y))
+        y += 30
+        visible_limit = 5
+        if len(self.player.inventory.bag) > 0:
+            for i in range(self.inv_bag_scroll, min(len(self.player.inventory.bag), self.inv_bag_scroll + visible_limit)):
+                item = self.player.inventory.bag[i]
+                color = gold if self.inv_tab == "bag" and i == self.inv_selection else white
+                px = "> " if color == gold else "  "
+                qty = f" (x{item.quantity})" if item.quantity > 1 else ""
+                self.screen.blit(self.font_tiny.render(f"{px}{item.name}{qty}", True, color), (text_x + 10, y))
+                y += 24
+        else:
+            self.screen.blit(self.font_tiny.render("  (empty)", True, (150, 150, 150)), (text_x + 10, y))
 
     def draw_info_screen(self):
         self.draw_ui_panel("CHARACTER STATUS")
@@ -553,31 +573,22 @@ class Game:
             self.screen.blit(self.font_tiny.render(txt, True, color), (130, y)); y += 22
 
     def update(self):
-        # Allow the player sprite to animate regardless of state
-        if self.player:
-            self.player.update_animation()
-            
+        if self.player: self.player.update_animation()
         if self.state == state_exploration:
             now = pygame.time.get_ticks()
             if not hasattr(self, 'last_move'): self.last_move = now
             if now - self.last_move > 500:
                 for e in self.enemies: e.map_wander(self.game_map, 64)
-                self.last_move = now
-                self.check_collisions()
-        # ... rest of the combat logic ...
+                self.last_move = now; self.check_collisions()
         elif self.state == state_combat and self.battle_system.turn == "enemy":
-            self.draw()
-            pygame.time.delay(500)
+            self.draw(); pygame.time.delay(500)
             res = self.battle_system.execute_enemy_turn()
-            if res == "defeat": 
-                self.running = False
+            if res == "defeat": self.running = False
             elif res == "victory":
                 self.add_message(self.battle_system.player_msg)
                 if self.player.gain_experience(self.battle_system.enemy.exp_reward):
-                    self.player.level_up()
-                    self.state = state_level_up
-                else: 
-                    self.state = state_exploration
+                    self.player.level_up(); self.state = state_level_up
+                else: self.state = state_exploration
                 self.battle_system.enemy.kill()
             pygame.event.clear(pygame.KEYDOWN)
 
@@ -597,38 +608,34 @@ class Game:
             for i, c in enumerate(self.class_options):
                 col = gold if i == self.class_selection else white
                 self.screen.blit(self.font_sub.render(c.upper(), True, col), (100, 200 + i * 60))
-        if self.state in [state_exploration, state_inventory, state_level_up, state_shop, "forge"]:
-            # 1. CALCULATE CAMERA
-            # Centers the camera on the player
-            cam_x = self.player.rect.centerx - (width // 2)
-            cam_y = self.player.rect.centery - (height // 2)
+        if self.state in [state_exploration, state_inventory, state_info, state_level_up, state_shop, "forge"]:
+            # CAMERA CLAMPING: Ensures viewport stays inside the walls
+            map_w = self.game_map.cols * tile_size
+            map_h = self.game_map.rows * tile_size
             
-            # 2. DRAW WORLD (Offset by Camera)
+            cam_x = max(0, min(self.player.rect.centerx - (width // 2), map_w - width))
+            cam_y = max(0, min(self.player.rect.centery - (height // 2), map_h - height))
+            
             self.game_map.draw(self.screen, cam_x, cam_y)
+            for s in self.exits: self.screen.blit(s.image, (s.rect.x - cam_x, s.rect.y - cam_y))
+            for s in self.chests: self.screen.blit(s.image, (s.rect.x - cam_x, s.rect.y - cam_y))
+            for s in self.forges: self.screen.blit(s.image, (s.rect.x - cam_x, s.rect.y - cam_y))
+            for s in self.enemies: self.screen.blit(s.image, (s.rect.x - cam_x, s.rect.y - cam_y))
             
-            for sprite in self.exits: 
-                self.screen.blit(sprite.image, (sprite.rect.x - cam_x, sprite.rect.y - cam_y))
-            for sprite in self.chests: 
-                self.screen.blit(sprite.image, (sprite.rect.x - cam_x, sprite.rect.y - cam_y))
-            for sprite in self.forges: 
-                self.screen.blit(sprite.image, (sprite.rect.x - cam_x, sprite.rect.y - cam_y))
-            for sprite in self.enemies: 
-                self.screen.blit(sprite.image, (sprite.rect.x - cam_x, sprite.rect.y - cam_y))
-            
-            # Player is now 96x96, offset drawing to center on his 64x64 hitbox
+            # Draw player: Offset -16 to center 96px sprite on 64px hitbox
             self.screen.blit(self.player.image, (self.player.rect.x - cam_x - 16, self.player.rect.y - cam_y - 16))
             
-            # 3. DRAW UI OVERLAYS (No Camera Offset)
             self.draw_hud()
             
-            if self.state == state_inventory:
-                self.draw_inventory()
-                # Draw the portrait in the inventory box
-                self.player.draw_large_portrait(self.screen, 130, 200)
+            if self.state == state_inventory: self.draw_inventory()
+            elif self.state == state_info: self.draw_info_screen()
+            elif self.state == state_level_up: self.draw_level_up_screen()
             elif self.state == state_shop: self.draw_shop()
+            elif self.state == "forge": self.draw_forge()
             
         elif self.state == state_combat:
             self.battle_system.draw()
+            
         pygame.display.flip()
 
     def run(self):
