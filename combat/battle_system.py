@@ -104,6 +104,10 @@ class BattleSystem:
                     self.player_msg = f"{self.enemy.enemy_type} dodged your attack!"
                 else:
                     base_damage = self.player.attack_damage
+                    
+                    # add a slight variance so attacks are not always identical
+                    base_damage = int(base_damage * random.uniform(0.9, 1.1))
+                    
                     berserk_power = self.player.has_skill("low_hp_buff")
                     if berserk_power > 0 and (self.player.current_health / self.player.max_health) < 0.3:
                         base_damage = int(base_damage * (1 + berserk_power))
@@ -205,8 +209,24 @@ class BattleSystem:
             self.enemy_msg = "you dodged the attack!"
         else:
             base_damage = self.enemy.attack_damage
+            
+            # difficulty fix: scale enemy damage so it pierces flat armor in late game stages
+            base_damage = int(base_damage * random.uniform(0.9, 1.1))
+            
+            # add a 15 percent chance for the enemy to land a critical hit
+            is_crit = random.random() < 0.15
+            if is_crit:
+                base_damage = int(base_damage * 1.5)
+                
+            # anti-armor measure: enemies always deal at least 5 percent of your max health plus stage level
+            # this ensures that even if you have massive defense, you are constantly pressured
+            armor_pierce = int(self.player.max_health * 0.05) + self.enemy.stage
+            base_damage += armor_pierce
+            
             damage_dealt = self.player.take_damage(base_damage, "physical")
-            self.enemy_msg = f"{self.enemy.enemy_type} hits you for {damage_dealt} damage!"
+            
+            crit_msg = "CRITICAL HIT! " if is_crit else ""
+            self.enemy_msg = f"{crit_msg}{self.enemy.enemy_type} hits you for {damage_dealt} damage!"
             
         return self.advance_turn()
 

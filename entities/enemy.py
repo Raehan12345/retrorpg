@@ -14,65 +14,79 @@ class Enemy(Entity):
             self.image.fill((150, 0, 0))
             self.rect = self.image.get_rect(topleft=(x, y))
         else:
+            self.image = pygame.Surface((64, 64))
             self.image.fill((200, 50, 50))
+            self.rect = self.image.get_rect(topleft=(x, y))
             
         self.setup_enemy_stats()
         
     def setup_enemy_stats(self):
-        scale = 1.0 + (self.stage * 0.15)
+        # DIFFICULTY FIX: Scale increased from 15% per stage to 35%
+        scale = 1.0 + (self.stage * 0.35)
+        
+        # Add a flat bonus so base enemies remain threatening as you forge gear
+        self.flat_bonus = (self.stage - 1) * 3
+        
         if self.is_boss: self.setup_boss_stats(scale)
         else: self.setup_regular_stats(scale)
         self.current_health = self.max_health
 
     def setup_regular_stats(self, scale):
-        self.forge_materials = random.randint(0, 1)
+        self.forge_materials = random.randint(0, 1) + (self.stage // 3)
         if self.enemy_type == "slime":
-            self.max_health = int(30 * scale)
-            self.attack_damage = int(5 * scale)
+            self.max_health = int(30 * scale) + self.flat_bonus
+            self.attack_damage = int(5 * scale) + self.flat_bonus
             self.exp_reward = 20 + (self.stage * 5)
             self.gold = random.randint(5, 15) + self.stage
             self.loot_table = [("minor health potion", 40), ("topaz ring", 10), ("frost dagger", 5), (None, 45)]
         elif self.enemy_type == "goblin":
-            self.max_health = int(50 * scale)
-            self.attack_damage = int(8 * scale)
+            self.max_health = int(50 * scale) + self.flat_bonus
+            self.attack_damage = int(8 * scale) + self.flat_bonus
             self.exp_reward = 40 + (self.stage * 5)
             self.gold = random.randint(15, 30) + self.stage
             self.loot_table = [("iron sword", 10), ("shortbow", 10), ("hunter tunic", 5), ("flame sword", 5), (None, 70)]
         elif self.enemy_type == "skeleton":
-            self.max_health = int(40 * scale)
-            self.attack_damage = int(12 * scale)
-            self.armor = int(5 * scale)
+            self.max_health = int(40 * scale) + self.flat_bonus
+            self.attack_damage = int(12 * scale) + self.flat_bonus
+            self.armor = int(5 * scale) + self.flat_bonus
             self.exp_reward = 60 + (self.stage * 5)
             self.gold = random.randint(20, 40) + self.stage
             self.loot_table = [("obsidian dagger", 5), ("venom spear", 5), ("minor mana potion", 40), (None, 50)]
         else:
-            self.max_health = int(20 * scale)
-            self.attack_damage = int(5 * scale)
+            self.max_health = int(20 * scale) + self.flat_bonus
+            self.attack_damage = int(5 * scale) + self.flat_bonus
             self.exp_reward = 10 + (self.stage * 5)
             self.gold = random.randint(1, 10) + self.stage
             self.loot_table = [(None, 100)]
+            
+        # Ensure enemies have the required stats to interact with battle_system dodge/speed mechanics
+        self.dodge_chance = min(0.15, 0.02 * self.stage)
+        self.speed = 5 + self.stage
 
     def setup_boss_stats(self, scale):
         self.forge_materials = 5 + self.stage
         if self.enemy_type == "dread knight":
-            self.max_health = int(120 * scale)
-            self.attack_damage = int(15 * scale)
-            self.armor = int(8 * scale)
+            self.max_health = int(120 * scale) + (self.flat_bonus * 2)
+            self.attack_damage = int(15 * scale) + (self.flat_bonus * 2)
+            self.armor = int(8 * scale) + self.flat_bonus
             self.exp_reward = 100 * self.stage
             self.gold = 200 + (self.stage * 50)
             self.loot_table = [("dragon slayer", 30), ("plate armor", 30), ("flame sword", 20), ("mithril mail", 20)]
         elif self.enemy_type == "lich king":
-            self.max_health = int(90 * scale)
-            self.magic_damage = int(20 * scale)
+            self.max_health = int(90 * scale) + (self.flat_bonus * 2)
+            self.magic_damage = int(20 * scale) + (self.flat_bonus * 2)
             self.exp_reward = 120 * self.stage
             self.gold = 250 + (self.stage * 50)
             self.loot_table = [("archmage scepter", 30), ("pendant of life", 30), ("storm bow", 20), ("shadow cloak", 20)]
         else:
-            self.max_health = int(100 * scale)
-            self.attack_damage = int(15 * scale)
+            self.max_health = int(100 * scale) + (self.flat_bonus * 2)
+            self.attack_damage = int(15 * scale) + (self.flat_bonus * 2)
             self.exp_reward = 100 * self.stage
             self.gold = 200 + (self.stage * 50)
             self.loot_table = [(None, 100)]
+            
+        self.dodge_chance = min(0.20, 0.05 + (0.02 * self.stage))
+        self.speed = 8 + self.stage
 
     def map_wander(self, game_map, step_size):
         if self.is_boss: return 
