@@ -1,5 +1,7 @@
 # Retro RPG: Python Edition
 
+[![Download Latest EXE](https://img.shields.io/badge/Download-Latest_EXE-blue?style=for-the-badge&logo=github)](https://github.com/Raehan12345/retrorpg/releases)
+
 A modular, 2D top-down RPG built with **Pygame-CE**. This project features a dynamic layered equipment system, procedural dungeon generation with connectivity validation, and a classic turn-based combat engine.
 
 ---
