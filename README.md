@@ -51,8 +51,10 @@ A modular, 2D top-down RPG built with **Pygame-CE**. This project features a dyn
    git clone [https://github.com/yourusername/retro-rpg-python.git](https://github.com/yourusername/retro-rpg-python.git)
    cd retro-rpg-python
 2. Install Dependencies
-    run: pip install pygame-ce 
+   ```bash
+   pip install pygame-ce 
 
 # Running the game
-To Start the Adventure, run:
-python main.py
+To Start the Adventure
+   ```
+   python main.py
