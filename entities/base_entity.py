@@ -4,47 +4,53 @@ class Entity(pygame.sprite.Sprite):
     def __init__(self, x, y, name):
         super().__init__()
         self.name = name
+        self.image = pygame.Surface((64, 64))
+        self.rect = self.image.get_rect(topleft=(x, y))
         
-        # core resources
         self.max_health = 100
         self.current_health = 100
         self.max_mana = 50
         self.current_mana = 50
-        
-        # offensive attributes
         self.attack_damage = 10
         self.magic_damage = 10
+        self.armor = 5
+        self.speed = 5
         self.crit_chance = 0.05
         self.crit_damage = 1.5
-        
-        # defensive attributes
-        self.armor = 5
-        self.cc_resistance = 0.0
         self.dodge_chance = 0.05
         
-        # utility attributes
-        self.speed = 5
-        
-        # basic rendering setup
-        self.image = pygame.Surface((32, 32))
-        self.image.fill((200, 50, 50))
-        self.rect = self.image.get_rect()
-        self.rect.topleft = (x, y)
+        self.gold = 0
+        self.statuses = {}
 
     def take_damage(self, amount, damage_type="physical"):
-        # basic mitigation calculation
-        if damage_type == "physical":
-            actual_damage = max(1, amount - self.armor)
-        else:
-            actual_damage = amount
-            
-        self.current_health -= actual_damage
-        
-        # prevent health from dropping below zero
-        if self.current_health <= 0:
-            self.current_health = 0
-            self.die()
+        mitigation = self.armor if damage_type == "physical" else 0
+        final_damage = max(1, amount - mitigation)
+        self.current_health -= final_damage
+        return final_damage
 
-    def die(self):
-        # remove sprite from all groups
-        self.kill()
+    def apply_status(self, status_name, duration, power=0):
+        self.statuses[status_name] = {"duration": duration, "power": power}
+
+    def process_statuses(self):
+        messages = []
+        keys_to_remove = []
+        
+        for status, data in self.statuses.items():
+            if status in ["poison", "bleed", "burn"]:
+                dmg = max(1, data["power"])
+                self.current_health -= dmg
+                messages.append(f"{self.name} took {dmg} {status} damage.")
+            elif status == "shock":
+                dmg = max(1, data["power"] + 2)
+                self.current_health -= dmg
+                messages.append(f"{self.name} shocked for {dmg} damage.")
+                
+            data["duration"] -= 1
+            if data["duration"] <= 0:
+                keys_to_remove.append(status)
+                
+        for key in keys_to_remove:
+            del self.statuses[key]
+            messages.append(f"{self.name} recovered from {key}.")
+            
+        return messages
