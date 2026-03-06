@@ -20,10 +20,8 @@ class Enemy(Entity):
         
     def setup_enemy_stats(self):
         scale = 1.0 + (self.stage * 0.15)
-        if self.is_boss:
-            self.setup_boss_stats(scale)
-        else:
-            self.setup_regular_stats(scale)
+        if self.is_boss: self.setup_boss_stats(scale)
+        else: self.setup_regular_stats(scale)
         self.current_health = self.max_health
 
     def setup_regular_stats(self, scale):

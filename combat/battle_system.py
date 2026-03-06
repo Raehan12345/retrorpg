@@ -16,7 +16,6 @@ class BattleSystem:
         self.selected_option = 0
         self.magic_selected_option = 0
         self.item_selected_option = 0
-        
         self.turn = "player"
         self.consecutive_turns = 1
         self.player_msg = ""
@@ -30,11 +29,9 @@ class BattleSystem:
         self.item_selected_option = 0
         self.menu_state = "main"
         self.consecutive_turns = 1
-        
         self.player_msg = ""
         self.enemy_msg = ""
         
-        # speed determines initiative
         if self.enemy.speed > self.player.speed:
             self.turn = "enemy"
             self.enemy_msg = f"a wild {self.enemy.enemy_type} appears and outspeeds you!"
@@ -43,19 +40,15 @@ class BattleSystem:
             self.player_msg = f"a wild {self.enemy.enemy_type} appears!"
 
     def advance_turn(self):
-        # centralized turn transition, death checking, and status ticking
         if self.turn == "player":
             if self.enemy.current_health <= 0: return self.handle_victory()
-            
             msgs = self.player.process_statuses()
             if msgs: self.player_msg += " " + " ".join(msgs)
-            
             if self.player.current_health <= 0: return "defeat"
             
-            # evaluate double-turn action economy
             if self.player.speed >= (self.enemy.speed * 2) and self.consecutive_turns < 2:
                 self.consecutive_turns += 1
-                self.player_msg += " (speed advantage: extra turn!)"
+                self.player_msg += " (extra turn!)"
                 self.turn = "player"
             else:
                 self.consecutive_turns = 1
@@ -66,15 +59,13 @@ class BattleSystem:
             if self.player.current_health <= 0:
                 self.enemy_msg += " you were defeated..."
                 return "defeat"
-                
             msgs = self.enemy.process_statuses()
             if msgs: self.enemy_msg += " " + " ".join(msgs)
-            
             if self.enemy.current_health <= 0: return self.handle_victory()
             
             if self.enemy.speed >= (self.player.speed * 2) and self.consecutive_turns < 2:
                 self.consecutive_turns += 1
-                self.enemy_msg += " (speed advantage: extra turn!)"
+                self.enemy_msg += " (extra turn!)"
                 self.turn = "enemy"
             else:
                 self.consecutive_turns = 1
@@ -85,12 +76,9 @@ class BattleSystem:
         loot_key = get_random_loot(self.enemy.loot_table, self.enemy.stage)
         self.player.gold += self.enemy.gold
         self.player.forge_materials += self.enemy.forge_materials
-        
         base_msg = f"victory! gained {self.enemy.gold}g"
-        if self.enemy.forge_materials > 0:
-            base_msg += f", {self.enemy.forge_materials} shards."
-        else:
-            base_msg += "."
+        if self.enemy.forge_materials > 0: base_msg += f", {self.enemy.forge_materials} shards."
+        else: base_msg += "."
             
         if loot_key:
             loot_item = item_database[loot_key]
@@ -98,7 +86,6 @@ class BattleSystem:
             self.player_msg = base_msg + f" found: {loot_item.original_name}!"
         else:
             self.player_msg = base_msg
-            
         self.enemy_msg = ""
         return "victory"
 
@@ -120,12 +107,10 @@ class BattleSystem:
                     berserk_power = self.player.has_skill("low_hp_buff")
                     if berserk_power > 0 and (self.player.current_health / self.player.max_health) < 0.3:
                         base_damage = int(base_damage * (1 + berserk_power))
-
                     is_crit = random.random() < self.player.crit_chance
                     if is_crit: base_damage = int(base_damage * self.player.crit_damage)
                         
                     damage_dealt = self.enemy.take_damage(base_damage, "physical")
-                    
                     msg_prefix = "critical hit! " if is_crit else ""
                     self.player_msg = f"{msg_prefix}dealt {damage_dealt} dmg."
                     
@@ -133,12 +118,10 @@ class BattleSystem:
                     if weapon and getattr(weapon, "element", None) and damage_dealt > 0:
                         elem = weapon.element
                         elem_dmg = getattr(weapon, "element_damage", 0)
-                        
                         if elem_dmg > 0:
                             self.enemy.take_damage(elem_dmg, "magic")
                             damage_dealt += elem_dmg
                             self.player_msg += f" +{elem_dmg} {elem} dmg!"
-                            
                         if random.random() < 0.30:
                             if elem == "fire":
                                 self.enemy.apply_status("burn", 3, max(1, damage_dealt // 4))
@@ -171,7 +154,6 @@ class BattleSystem:
                 return "continue"
                 
             elif self.options[self.selected_option] == "flee":
-                # strict fleeing evaluation tied directly to speed
                 if self.player.speed > self.enemy.speed:
                     self.player_msg = "successfully escaped combat!"
                     return "flee_success"
@@ -183,36 +165,28 @@ class BattleSystem:
             if self.magic_selected_option == len(self.player.spells):
                 self.menu_state = "main"
                 return "continue"
-                
             spell = self.player.spells[self.magic_selected_option]
             success, msg = spell.cast(self.player, self.enemy)
             self.player_msg = msg
-            if not success:
-                self.menu_state = "main"
-                return "continue"
             self.menu_state = "main"
+            if not success: return "continue"
             
         elif self.menu_state == "items":
             consumables = [i for i in self.player.inventory.bag if i.item_type == "consumable"]
             if self.item_selected_option == len(consumables):
                 self.menu_state = "main"
                 return "continue"
-                
             item = consumables[self.item_selected_option]
             success, msg = item.use(self.player)
             self.player_msg = msg
-            if success:
-                self.player.inventory.remove_item(item)
-                self.menu_state = "main"
-            else:
-                self.menu_state = "main"
-                return "continue"
+            self.menu_state = "main"
+            if success: self.player.inventory.remove_item(item)
+            else: return "continue"
 
         vamp_power = self.player.has_skill("life_steal")
         if vamp_power > 0 and damage_dealt > 0:
             heal_amt = int(damage_dealt * vamp_power)
             self.player.current_health = min(self.player.max_health, self.player.current_health + heal_amt)
-                
         m_regen = self.player.has_skill("mana_regen")
         if m_regen > 0:
             self.player.current_mana = min(self.player.max_mana, self.player.current_mana + m_regen)
@@ -221,14 +195,12 @@ class BattleSystem:
 
     def execute_enemy_turn(self):
         is_stunned = "stun" in self.enemy.statuses
-        
         if is_stunned:
             self.enemy_msg = f"{self.enemy.enemy_type} is stunned and cannot move!"
             return self.advance_turn()
             
         dodge_roll = random.random()
         cheat_death_power = self.player.has_skill("cheat_death")
-        
         if dodge_roll < self.player.dodge_chance or dodge_roll < cheat_death_power:
             self.enemy_msg = "you dodged the attack!"
         else:
@@ -249,10 +221,8 @@ class BattleSystem:
                 lines.append(curr_line)
                 curr_line = word + " "
         lines.append(curr_line)
-        
         for i, line in enumerate(lines):
             self.screen.blit(self.font.render(line, True, color), (start_x, start_y + i * 25))
-            
         return len(lines) * 25
 
     def draw(self):
@@ -304,7 +274,6 @@ class BattleSystem:
                 color = gold if i == self.magic_selected_option else white
                 txt = self.font.render(f"{spell.name.upper()} LVL {spell.level} ({spell.mana_cost}MP)", True, color)
                 self.screen.blit(txt, (menu_x, self.panel_y + 15 + (i * 30)))
-            
             back_idx = len(self.player.spells)
             color = gold if back_idx == self.magic_selected_option else white
             txt = self.font.render("BACK", True, color)
@@ -316,7 +285,6 @@ class BattleSystem:
                 qty_str = f" (x{item.quantity})" if hasattr(item, 'quantity') and item.quantity > 1 else ""
                 txt = self.font.render(f"{item.name.upper()}{qty_str}", True, color)
                 self.screen.blit(txt, (menu_x, self.panel_y + 15 + (i * 30)))
-                
             back_idx = len(consumables)
             color = gold if back_idx == self.item_selected_option else white
             txt = self.font.render("BACK", True, color)

@@ -22,7 +22,6 @@ class Consumable(Item):
         elif self.effect_type == "mana":
             target.current_mana = min(target.max_mana, target.current_mana + self.amount)
             return True, f"restored {self.amount} mp."
-            
         return False, "nothing happened."
 
 class Equipment(Item):
@@ -45,13 +44,10 @@ class Equipment(Item):
     def upgrade(self):
         if self.upgrade_level < 10:
             self.upgrade_level += 1
-            # increase base stats by roughly 10% per level
             for stat, val in self.base_stats.items():
                 bonus = max(1, int(val * 0.10))
                 self.stats[stat] += bonus
-            # increase elemental damage if present
-            if self.element_damage > 0:
-                self.element_damage += 2
+            if self.element_damage > 0: self.element_damage += 2
             self.update_name()
             return True
         return False
@@ -121,6 +117,5 @@ def get_random_loot(table, stage=1):
     current = 0
     for item_key, weight in adjusted_table:
         current += weight
-        if roll <= current:
-            return item_key
+        if roll <= current: return item_key
     return None

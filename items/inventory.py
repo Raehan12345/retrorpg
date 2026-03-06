@@ -6,32 +6,26 @@ class Inventory:
         self.bag = []
 
     def add_item(self, item):
-        # stack consumables automatically
         if item.item_type == "consumable":
             for b_item in self.bag:
                 if b_item.name == item.name:
                     b_item.quantity += getattr(item, 'quantity', 1)
                     return
         
-        # otherwise deepcopy to prevent singleton reference bugs
         new_item = copy.deepcopy(item)
-        if not hasattr(new_item, 'quantity'):
-            new_item.quantity = 1
+        if not hasattr(new_item, 'quantity'): new_item.quantity = 1
         self.bag.append(new_item)
 
     def remove_item(self, item):
-        # decrement quantity if stacked, otherwise remove entirely
         if hasattr(item, 'quantity') and item.quantity > 1:
             item.quantity -= 1
         else:
-            if item in self.bag:
-                self.bag.remove(item)
+            if item in self.bag: self.bag.remove(item)
 
     def equip(self, item, player):
         if item.item_type == "equipment":
             slot = item.slot
-            if self.equipped[slot]:
-                self.unequip(slot, player)
+            if self.equipped[slot]: self.unequip(slot, player)
             self.equipped[slot] = item
             self.remove_item(item)
             self.apply_stats(item, player, 1)

@@ -7,7 +7,6 @@ class PassiveSkill:
         self.power = power
         self.unlocked = False
 
-# database of unique passive traits
 skill_tree_database = {
     "vampirism": PassiveSkill("vampirism", "heal 10% of physical damage dealt.", 1, "life_steal", 0.10),
     "midas touch": PassiveSkill("midas touch", "increase gold drops by 25%.", 1, "gold_boost", 0.25),

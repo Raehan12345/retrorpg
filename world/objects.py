@@ -8,7 +8,6 @@ class Chest(pygame.sprite.Sprite):
         self.image.fill((200, 150, 50))
         self.rect = self.image.get_rect(topleft=(x + 16, y + 16))
         self.stage = stage
-        # added elemental items to the standard chest pool
         self.loot_table = [("ruby ring", 15), ("sapphire necklace", 15), ("broadsword", 20), ("hunter tunic", 20), ("longbow", 15), ("venom spear", 10), ("flame sword", 10), ("frost dagger", 10), ("storm bow", 5)]
 
     def open(self, player):

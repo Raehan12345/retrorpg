@@ -13,7 +13,6 @@ class Spell:
         self.status_duration = status_duration
 
     def get_current_power(self):
-        # scale power based on current level
         return self.base_power + int(self.base_power * 0.3 * (self.level - 1))
 
     def cast(self, caster, target):
@@ -44,25 +43,18 @@ class Spell:
         return True, msg
 
 spell_database = {
-    # warrior
     "heavy strike": Spell("heavy strike", 15, "physical", 20, "a powerful physical blow.", "stun", 1),
     "shield bash": Spell("shield bash", 10, "physical", 10, "bashes the enemy with a shield.", "stun", 1),
     "rend": Spell("rend", 12, "physical", 15, "tears the enemy causing bleeding.", "bleed", 3),
     "warcry": Spell("warcry", 20, "magic", 5, "intimidates the enemy.", "stun", 2),
-    
-    # mage
     "fireball": Spell("fireball", 20, "magic", 35, "hurls a blazing fireball.", "burn", 2),
     "ice shard": Spell("ice shard", 15, "magic", 25, "shoots a piercing shard of ice.", "stun", 1),
     "lightning bolt": Spell("lightning bolt", 25, "magic", 40, "high damage lightning strike.", "shock", 2),
     "venom blast": Spell("venom blast", 18, "magic", 20, "toxic magic attack.", "poison", 4),
-    
-    # rogue
     "poison blade": Spell("poison blade", 12, "physical", 15, "a quick strike with a toxic edge.", "poison", 3),
     "shadow step": Spell("shadow step", 18, "physical", 25, "strikes suddenly from the shadows."),
     "throat slit": Spell("throat slit", 25, "physical", 30, "devastating attack.", "bleed", 3),
     "paralyzing dart": Spell("paralyzing dart", 15, "physical", 10, "ranged attack that stuns.", "stun", 2),
-
-    # archer
     "piercing arrow": Spell("piercing arrow", 12, "physical", 18, "a high velocity arrow.", "bleed", 2),
     "volley": Spell("volley", 20, "physical", 25, "a rain of arrows."),
     "hunter mark": Spell("hunter mark", 15, "magic", 5, "exposes weak points.", "stun", 1),
