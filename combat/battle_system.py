@@ -16,7 +16,9 @@ class BattleSystem:
         self.selected_option = 0
         self.magic_selected_option = 0
         self.item_selected_option = 0
+        
         self.turn = "player"
+        self.consecutive_turns = 1
         self.player_msg = ""
         self.enemy_msg = ""
 
@@ -27,24 +29,57 @@ class BattleSystem:
         self.magic_selected_option = 0
         self.item_selected_option = 0
         self.menu_state = "main"
-        self.turn = "player"
-        self.player_msg = f"a wild {self.enemy.enemy_type} appears!"
+        self.consecutive_turns = 1
+        
+        self.player_msg = ""
         self.enemy_msg = ""
+        
+        # speed determines initiative
+        if self.enemy.speed > self.player.speed:
+            self.turn = "enemy"
+            self.enemy_msg = f"a wild {self.enemy.enemy_type} appears and outspeeds you!"
+        else:
+            self.turn = "player"
+            self.player_msg = f"a wild {self.enemy.enemy_type} appears!"
 
     def advance_turn(self):
+        # centralized turn transition, death checking, and status ticking
         if self.turn == "player":
-            msgs = self.enemy.process_statuses()
-            if msgs: self.player_msg += " " + " ".join(msgs)
             if self.enemy.current_health <= 0: return self.handle_victory()
-            self.turn = "enemy"
-        else:
+            
             msgs = self.player.process_statuses()
-            if msgs: self.enemy_msg += " " + " ".join(msgs)
+            if msgs: self.player_msg += " " + " ".join(msgs)
+            
+            if self.player.current_health <= 0: return "defeat"
+            
+            # evaluate double-turn action economy
+            if self.player.speed >= (self.enemy.speed * 2) and self.consecutive_turns < 2:
+                self.consecutive_turns += 1
+                self.player_msg += " (speed advantage: extra turn!)"
+                self.turn = "player"
+            else:
+                self.consecutive_turns = 1
+                self.turn = "enemy"
+            return "continue"
+            
+        else:
             if self.player.current_health <= 0:
-                self.enemy_msg = "you were defeated..."
+                self.enemy_msg += " you were defeated..."
                 return "defeat"
-            self.turn = "player"
-        return "continue"
+                
+            msgs = self.enemy.process_statuses()
+            if msgs: self.enemy_msg += " " + " ".join(msgs)
+            
+            if self.enemy.current_health <= 0: return self.handle_victory()
+            
+            if self.enemy.speed >= (self.player.speed * 2) and self.consecutive_turns < 2:
+                self.consecutive_turns += 1
+                self.enemy_msg += " (speed advantage: extra turn!)"
+                self.turn = "enemy"
+            else:
+                self.consecutive_turns = 1
+                self.turn = "player"
+            return "continue"
 
     def handle_victory(self):
         loot_key = get_random_loot(self.enemy.loot_table, self.enemy.stage)
@@ -74,154 +109,134 @@ class BattleSystem:
         
         if is_stunned:
             self.player_msg = "you are stunned and cannot move!"
-        else:
-            if self.menu_state == "main":
-                if self.options[self.selected_option] == "attack":
-                    if random.random() < self.enemy.dodge_chance:
-                        self.player_msg = f"{self.enemy.enemy_type} dodged your attack!"
-                    else:
-                        base_damage = self.player.attack_damage
-                        berserk_power = self.player.has_skill("low_hp_buff")
-                        if berserk_power > 0 and (self.player.current_health / self.player.max_health) < 0.3:
-                            base_damage = int(base_damage * (1 + berserk_power))
+            return self.advance_turn()
 
-                        is_crit = random.random() < self.player.crit_chance
-                        if is_crit: base_damage = int(base_damage * self.player.crit_damage)
-                            
-                        start_hp = self.enemy.current_health
-                        damage_dealt = self.enemy.take_damage(base_damage, "physical")
-                        
-                        msg_prefix = "critical hit! " if is_crit else ""
-                        self.player_msg = f"{msg_prefix}dealt {damage_dealt} dmg."
-                        
-                        weapon = self.player.inventory.equipped.get("weapon")
-                        if weapon and getattr(weapon, "element", None) and damage_dealt > 0:
-                            elem = weapon.element
-                            elem_dmg = getattr(weapon, "element_damage", 0)
-                            
-                            if elem_dmg > 0:
-                                self.enemy.take_damage(elem_dmg, "magic")
-                                damage_dealt += elem_dmg
-                                self.player_msg += f" +{elem_dmg} {elem} dmg!"
-                                
-                            if random.random() < 0.30:
-                                if elem == "fire":
-                                    self.enemy.apply_status("burn", 3, max(1, damage_dealt // 4))
-                                    self.player_msg += " enemy burning!"
-                                elif elem == "ice":
-                                    self.enemy.apply_status("stun", 1, 0)
-                                    self.player_msg += " enemy frozen!"
-                                elif elem == "poison":
-                                    self.enemy.apply_status("poison", 3, max(1, damage_dealt // 5))
-                                    self.player_msg += " enemy poisoned!"
-                                elif elem == "lightning":
-                                    self.enemy.apply_status("shock", 2, max(1, damage_dealt // 3))
-                                    self.player_msg += " enemy shocked!"
-                            
-                elif self.options[self.selected_option] == "magic":
-                    if not self.player.spells:
-                        self.player_msg = "you know no spells!"
-                        return "continue"
-                    self.menu_state = "magic"
-                    self.magic_selected_option = 0
-                    return "continue"
-                    
-                elif self.options[self.selected_option] == "items":
-                    consumables = [i for i in self.player.inventory.bag if i.item_type == "consumable"]
-                    if not consumables:
-                        self.player_msg = "you have no items!"
-                        return "continue"
-                    self.menu_state = "items"
-                    self.item_selected_option = 0
-                    return "continue"
-                    
-                elif self.options[self.selected_option] == "flee":
-                    if self.player.speed > self.enemy.speed:
-                        self.player_msg = "successfully escaped combat!"
-                        return "flee_success"
-                    else:
-                        self.player_msg = "escape unsuccessful!"
-                        
-            elif self.menu_state == "magic":
-                if self.magic_selected_option == len(self.player.spells):
-                    self.menu_state = "main"
-                    return "continue"
-                    
-                spell = self.player.spells[self.magic_selected_option]
-                success, msg = spell.cast(self.player, self.enemy)
-                self.player_msg = msg
-                if not success:
-                    self.menu_state = "main"
-                    return "continue"
-                self.menu_state = "main"
-                
-            elif self.menu_state == "items":
-                consumables = [i for i in self.player.inventory.bag if i.item_type == "consumable"]
-                if self.item_selected_option == len(consumables):
-                    self.menu_state = "main"
-                    return "continue"
-                    
-                item = consumables[self.item_selected_option]
-                success, msg = item.use(self.player)
-                self.player_msg = msg
-                if success:
-                    self.player.inventory.remove_item(item)
-                    self.menu_state = "main"
+        if self.menu_state == "main":
+            if self.options[self.selected_option] == "attack":
+                if random.random() < self.enemy.dodge_chance:
+                    self.player_msg = f"{self.enemy.enemy_type} dodged your attack!"
                 else:
-                    self.menu_state = "main"
-                    return "continue"
+                    base_damage = self.player.attack_damage
+                    berserk_power = self.player.has_skill("low_hp_buff")
+                    if berserk_power > 0 and (self.player.current_health / self.player.max_health) < 0.3:
+                        base_damage = int(base_damage * (1 + berserk_power))
 
-            vamp_power = self.player.has_skill("life_steal")
-            if vamp_power > 0 and damage_dealt > 0:
-                heal_amt = int(damage_dealt * vamp_power)
-                self.player.current_health = min(self.player.max_health, self.player.current_health + heal_amt)
+                    is_crit = random.random() < self.player.crit_chance
+                    if is_crit: base_damage = int(base_damage * self.player.crit_damage)
+                        
+                    damage_dealt = self.enemy.take_damage(base_damage, "physical")
                     
-            m_regen = self.player.has_skill("mana_regen")
-            if m_regen > 0:
-                self.player.current_mana = min(self.player.max_mana, self.player.current_mana + m_regen)
+                    msg_prefix = "critical hit! " if is_crit else ""
+                    self.player_msg = f"{msg_prefix}dealt {damage_dealt} dmg."
+                    
+                    weapon = self.player.inventory.equipped.get("weapon")
+                    if weapon and getattr(weapon, "element", None) and damage_dealt > 0:
+                        elem = weapon.element
+                        elem_dmg = getattr(weapon, "element_damage", 0)
+                        
+                        if elem_dmg > 0:
+                            self.enemy.take_damage(elem_dmg, "magic")
+                            damage_dealt += elem_dmg
+                            self.player_msg += f" +{elem_dmg} {elem} dmg!"
+                            
+                        if random.random() < 0.30:
+                            if elem == "fire":
+                                self.enemy.apply_status("burn", 3, max(1, damage_dealt // 4))
+                                self.player_msg += " enemy burning!"
+                            elif elem == "ice":
+                                self.enemy.apply_status("stun", 1, 0)
+                                self.player_msg += " enemy frozen!"
+                            elif elem == "poison":
+                                self.enemy.apply_status("poison", 3, max(1, damage_dealt // 5))
+                                self.player_msg += " enemy poisoned!"
+                            elif elem == "lightning":
+                                self.enemy.apply_status("shock", 2, max(1, damage_dealt // 3))
+                                self.player_msg += " enemy shocked!"
+                        
+            elif self.options[self.selected_option] == "magic":
+                if not self.player.spells:
+                    self.player_msg = "you know no spells!"
+                    return "continue"
+                self.menu_state = "magic"
+                self.magic_selected_option = 0
+                return "continue"
+                
+            elif self.options[self.selected_option] == "items":
+                consumables = [i for i in self.player.inventory.bag if i.item_type == "consumable"]
+                if not consumables:
+                    self.player_msg = "you have no items!"
+                    return "continue"
+                self.menu_state = "items"
+                self.item_selected_option = 0
+                return "continue"
+                
+            elif self.options[self.selected_option] == "flee":
+                # strict fleeing evaluation tied directly to speed
+                if self.player.speed > self.enemy.speed:
+                    self.player_msg = "successfully escaped combat!"
+                    return "flee_success"
+                else:
+                    self.player_msg = "escape unsuccessful!"
+                    return self.advance_turn()
+                    
+        elif self.menu_state == "magic":
+            if self.magic_selected_option == len(self.player.spells):
+                self.menu_state = "main"
+                return "continue"
+                
+            spell = self.player.spells[self.magic_selected_option]
+            success, msg = spell.cast(self.player, self.enemy)
+            self.player_msg = msg
+            if not success:
+                self.menu_state = "main"
+                return "continue"
+            self.menu_state = "main"
+            
+        elif self.menu_state == "items":
+            consumables = [i for i in self.player.inventory.bag if i.item_type == "consumable"]
+            if self.item_selected_option == len(consumables):
+                self.menu_state = "main"
+                return "continue"
+                
+            item = consumables[self.item_selected_option]
+            success, msg = item.use(self.player)
+            self.player_msg = msg
+            if success:
+                self.player.inventory.remove_item(item)
+                self.menu_state = "main"
+            else:
+                self.menu_state = "main"
+                return "continue"
 
-        msgs = self.player.process_statuses()
-        if msgs: self.player_msg += " " + " ".join(msgs)
-        
-        if self.enemy.current_health <= 0:
-            return self.handle_victory()
-            
-        if self.player.current_health <= 0:
-            return "defeat"
-            
-        self.turn = "enemy"
-        return "continue"
+        vamp_power = self.player.has_skill("life_steal")
+        if vamp_power > 0 and damage_dealt > 0:
+            heal_amt = int(damage_dealt * vamp_power)
+            self.player.current_health = min(self.player.max_health, self.player.current_health + heal_amt)
+                
+        m_regen = self.player.has_skill("mana_regen")
+        if m_regen > 0:
+            self.player.current_mana = min(self.player.max_mana, self.player.current_mana + m_regen)
+
+        return self.advance_turn()
 
     def execute_enemy_turn(self):
         is_stunned = "stun" in self.enemy.statuses
         
         if is_stunned:
             self.enemy_msg = f"{self.enemy.enemy_type} is stunned and cannot move!"
-        else:
-            dodge_roll = random.random()
-            cheat_death_power = self.player.has_skill("cheat_death")
+            return self.advance_turn()
             
-            if dodge_roll < self.player.dodge_chance or dodge_roll < cheat_death_power:
-                self.enemy_msg = "you dodged the attack!"
-            else:
-                base_damage = self.enemy.attack_damage
-                start_hp = self.player.current_health
-                self.player.take_damage(base_damage, "physical")
-                damage_dealt = start_hp - self.player.current_health
-                self.enemy_msg = f"{self.enemy.enemy_type} hits you for {damage_dealt} damage!"
+        dodge_roll = random.random()
+        cheat_death_power = self.player.has_skill("cheat_death")
         
-        msgs = self.enemy.process_statuses()
-        if msgs: self.enemy_msg += " " + " ".join(msgs)
+        if dodge_roll < self.player.dodge_chance or dodge_roll < cheat_death_power:
+            self.enemy_msg = "you dodged the attack!"
+        else:
+            base_damage = self.enemy.attack_damage
+            damage_dealt = self.player.take_damage(base_damage, "physical")
+            self.enemy_msg = f"{self.enemy.enemy_type} hits you for {damage_dealt} damage!"
             
-        if self.player.current_health <= 0:
-            self.enemy_msg += " you were defeated..."
-            return "defeat"
-            
-        if self.enemy.current_health <= 0:
-            return self.handle_victory()
-            
-        self.turn = "player"
-        return "continue"
+        return self.advance_turn()
 
     def draw_text_wrapped(self, text, color, start_x, start_y, max_width):
         words = text.split(' ')
@@ -244,7 +259,6 @@ class BattleSystem:
         self.screen.fill((20, 20, 30))
         if not self.player or not self.enemy: return
             
-        # Tightened the max_width parameter here to width - 100 to prevent edge clipping
         p_offset = self.draw_text_wrapped(self.player_msg, white, 40, 40, width - 100)
         self.draw_text_wrapped(self.enemy_msg, (255, 100, 100), 40, 40 + p_offset, width - 100)
             

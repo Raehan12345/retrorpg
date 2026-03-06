@@ -55,7 +55,7 @@ class Game:
         self.exits = pygame.sprite.Group()
         
         self.level_up_tab = "stats"
-        self.level_up_options = ["max_health", "max_mana", "attack_damage", "magic_damage", "armor"]
+        self.level_up_options = ["max_health", "max_mana", "attack_damage", "magic_damage", "armor", "speed"]
         self.skill_options = list(skill_tree_database.keys())
         self.level_up_selection = 0
         
